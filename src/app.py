@@ -223,6 +223,15 @@ def procesar(ruta):
             text="El archivo no es compatible\n o está dañado"
         )
 
+
+def iniciar_proceso(ruta):
+    estado.configure(text="Procesando...")
+    resultado.configure(text="")
+    progress.set(0)
+    hilo = threading.Thread(target=procesar, args=(ruta,), daemon=True)
+    hilo.start()
+
+
 # -------- EVENTOS --------
 
 def seleccionar_archivo():
