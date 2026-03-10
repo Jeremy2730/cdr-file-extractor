@@ -11,94 +11,123 @@ from tkinter import filedialog
 from tkinterdnd2 import TkinterDnD, DND_FILES
 
 
-# ---------- Config UI ----------
+# -------- CONFIGURACION UI --------
+
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 
-# ---------- Rutas ----------
+# -------- RUTAS --------
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMP_DIR = os.path.join(BASE_DIR, "temp")
 DOWNLOADS = os.path.join(os.path.expanduser("~"), "Downloads")
 
 
-# ---------- Utilidades ----------
+# -------- FUNCIONES --------
+
 def limpiar_temp():
     if os.path.exists(TEMP_DIR):
         shutil.rmtree(TEMP_DIR)
+
     os.makedirs(TEMP_DIR, exist_ok=True)
 
 
 def es_paquete_corel(carpeta):
+
     try:
         elementos = os.listdir(carpeta)
+
         return "content" in elementos and "mimetype" in elementos
-    except Exception:
+
+    except:
         return False
 
 
 def reconstruir_cdr(carpeta):
+
     nombre = os.path.basename(carpeta)
+
     salida = os.path.join(DOWNLOADS, f"{nombre}_FIX.cdr")
 
     with zipfile.ZipFile(salida, "w", zipfile.ZIP_DEFLATED) as zipf:
+
         for raiz, _, archivos in os.walk(carpeta):
+
             for archivo in archivos:
+
                 ruta = os.path.join(raiz, archivo)
+
                 relativa = os.path.relpath(ruta, carpeta)
+
                 zipf.write(ruta, relativa)
 
     return salida
 
 
 def extraer_archivo(archivo):
+
     limpiar_temp()
 
     archivo = archivo.lower()
 
     if archivo.endswith(".zip"):
+
         with zipfile.ZipFile(archivo, "r") as z:
             z.extractall(TEMP_DIR)
 
     elif archivo.endswith(".rar"):
+
         with rarfile.RarFile(archivo) as r:
             r.extractall(TEMP_DIR)
 
     elif archivo.endswith(".7z"):
+
         with py7zr.SevenZipFile(archivo, "r") as z:
             z.extractall(TEMP_DIR)
 
 
 def buscar_paquete():
+
     for raiz, dirs, files in os.walk(TEMP_DIR):
+
         if "content" in dirs and "mimetype" in files:
+
             return raiz
+
     return None
 
 
-# ---------- Lógica principal ----------
+# -------- LOGICA --------
+
 def procesar(ruta):
 
     progress.set(0.1)
-    estado.configure(text="Procesando...")
+
+    estado.configure(text="Procesando archivo...")
 
     if os.path.isdir(ruta):
 
         progress.set(0.4)
 
         if es_paquete_corel(ruta):
+
             salida = reconstruir_cdr(ruta)
 
             progress.set(1)
-            estado.configure(text="✔ CDR creado")
+
+            estado.configure(text="✔ CDR reconstruido")
+
             resultado.configure(text=f"Guardado en:\n{salida}")
 
         else:
-            estado.configure(text="No es paquete Corel")
+
+            estado.configure(text="No es paquete Corel válido")
 
     else:
 
         progress.set(0.3)
+
         extraer_archivo(ruta)
 
         progress.set(0.6)
@@ -106,104 +135,178 @@ def procesar(ruta):
         carpeta = buscar_paquete()
 
         if carpeta:
+
             salida = reconstruir_cdr(carpeta)
 
             progress.set(1)
-            estado.configure(text="✔ CDR creado")
+
+            estado.configure(text="✔ CDR reconstruido")
+
             resultado.configure(text=f"Guardado en:\n{salida}")
 
         else:
+
             estado.configure(text="No se encontró paquete Corel")
 
 
 def iniciar_proceso(ruta):
+
     threading.Thread(target=procesar, args=(ruta,), daemon=True).start()
 
 
-# ---------- Eventos ----------
+# -------- EVENTOS --------
+
 def seleccionar_archivo():
+
     ruta = filedialog.askopenfilename(
-        filetypes=[
-            ("Archivos compatibles", "*.zip *.rar *.7z"),
-            ("Todos", "*.*")
-        ]
+        filetypes=[("Archivos compatibles", "*.zip *.rar *.7z"), ("Todos", "*.*")]
     )
+
     if ruta:
         iniciar_proceso(ruta)
 
 
 def seleccionar_carpeta():
+
     ruta = filedialog.askdirectory()
+
     if ruta:
         iniciar_proceso(ruta)
 
 
 def drop(event):
+
     ruta = event.data.strip("{}")
+
     iniciar_proceso(ruta)
 
 
-# ---------- Ventana ----------
+# -------- VENTANA --------
+
 app = TkinterDnD.Tk()
+
 app.title("CDR Reconstructor")
-app.geometry("500x420")
+
+app.geometry("520x460")
+
+app.configure(bg="#0f172a")
 
 
-titulo = ctk.CTkLabel(app, text="CDR Reconstructor", font=("Arial", 24))
-titulo.pack(pady=20)
+# -------- TITULO --------
 
-
-info = ctk.CTkLabel(
+titulo = ctk.CTkLabel(
     app,
-    text="Arrastra aquí ZIP / RAR / 7Z\n o selecciona archivo o carpeta",
-    font=("Arial", 14)
+    text="CDR RECONSTRUCTOR",
+    font=("Segoe UI", 28, "bold"),
+    text_color="white"
 )
-info.pack(pady=10)
+
+titulo.pack(pady=(25,5))
 
 
-frame_botones = ctk.CTkFrame(app)
-frame_botones.pack(pady=10)
+subtitulo = ctk.CTkLabel(
+    app,
+    text="Reconstruye archivos CorelDRAW desde ZIP / RAR / 7Z",
+    font=("Segoe UI", 13),
+    text_color="#9ca3af"
+)
+
+subtitulo.pack(pady=(0,20))
+
+
+# -------- PANEL CENTRAL --------
+
+panel = ctk.CTkFrame(
+    app,
+    width=420,
+    height=220,
+    corner_radius=15
+)
+
+panel.pack()
+
+panel.pack_propagate(False)
+
+
+# -------- BOTONES --------
+
+frame_botones = ctk.CTkFrame(panel, fg_color="transparent")
+
+frame_botones.pack(pady=15)
 
 
 btn_archivo = ctk.CTkButton(
     frame_botones,
     text="Seleccionar archivo",
+    width=180,
+    height=40,
     command=seleccionar_archivo
 )
-btn_archivo.grid(row=0, column=0, padx=10, pady=10)
+
+btn_archivo.grid(row=0, column=0, padx=10)
 
 
 btn_carpeta = ctk.CTkButton(
     frame_botones,
     text="Seleccionar carpeta",
+    width=180,
+    height=40,
     command=seleccionar_carpeta
 )
-btn_carpeta.grid(row=0, column=1, padx=10, pady=10)
 
+btn_carpeta.grid(row=0, column=1, padx=10)
+
+
+# -------- ZONA DRAG DROP --------
 
 zona_drop = ctk.CTkLabel(
-    app,
-    text="⬇ Arrastra aquí ⬇",
-    height=100,
+    panel,
+    text="⬇ Arrastra tu archivo aquí ⬇\nZIP  RAR  7Z",
     width=350,
-    corner_radius=10
+    height=90,
+    corner_radius=10,
+    fg_color="#1e293b",
+    font=("Segoe UI", 14)
 )
-zona_drop.pack(pady=20)
+
+zona_drop.pack(pady=10)
 
 zona_drop.drop_target_register(DND_FILES)
+
 zona_drop.dnd_bind("<<Drop>>", drop)
 
 
-progress = ctk.CTkProgressBar(app, width=350)
-progress.pack(pady=10)
+# -------- PROGRESS --------
+
+progress = ctk.CTkProgressBar(
+    app,
+    width=400,
+    height=18
+)
+
+progress.pack(pady=25)
+
 progress.set(0)
 
 
-estado = ctk.CTkLabel(app, text="Esperando archivo...")
-estado.pack(pady=5)
+# -------- ESTADO --------
+
+estado = ctk.CTkLabel(
+    app,
+    text="Esperando archivo...",
+    font=("Segoe UI", 12)
+)
+
+estado.pack()
 
 
-resultado = ctk.CTkLabel(app, text="")
+resultado = ctk.CTkLabel(
+    app,
+    text="",
+    font=("Segoe UI", 11),
+    text_color="#9ca3af"
+)
+
 resultado.pack(pady=5)
 
 
