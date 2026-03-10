@@ -16,3 +16,20 @@ dist/
 # sistema
 .DS_Store
 Thumbs.db
+
+# Temporales
+temp/
+dist/
+build/
+*.spec
+__pycache__/
+
+# Archivos de diseño procesados
+*.cdr
+*.ai
+*.pdf
+*.ttf
+*.url
+*.rar
+*.zip
+*.7z
