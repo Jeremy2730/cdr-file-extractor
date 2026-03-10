@@ -101,30 +101,36 @@ def buscar_paquete():
     return None
 
 
-def detectar_formatos():
+def detectar_formatos(carpeta_raiz=None):
+
+    if carpeta_raiz is None:
+        carpeta_raiz = TEMP_DIR
 
     formatos_detectados = []
 
-    for raiz, dirs, files in os.walk(TEMP_DIR):
+    EXTENSIONES = {
+        ".ai":       "Adobe Illustrator (.ai)",
+        ".psd":      "Photoshop (.psd)",
+        ".svg":      "SVG (.svg)",
+        ".eps":      "EPS (.eps)",
+        ".pdf":      "PDF (.pdf)",
+        ".indd":     "InDesign (.indd)",
+        ".xd":       "Adobe XD (.xd)",
+        ".fig":      "Figma (.fig)",
+        ".afdesign": "Affinity Designer (.afdesign)",
+        ".cdr":      "CorelDRAW (.cdr) — sin estructura de paquete",
+    }
+
+    for raiz, dirs, files in os.walk(carpeta_raiz):
 
         for archivo in files:
 
             ext = os.path.splitext(archivo)[1].lower()
 
-            if ext == ".ai":
-                formatos_detectados.append("Illustrator (.ai)")
-
-            elif ext == ".psd":
-                formatos_detectados.append("Photoshop (.psd)")
-
-            elif ext == ".svg":
-                formatos_detectados.append("SVG")
-
-            elif ext == ".eps":
-                formatos_detectados.append("EPS")
+            if ext in EXTENSIONES:
+                formatos_detectados.append(EXTENSIONES[ext])
 
     return list(set(formatos_detectados))
-
 
 
 # -------- LOGICA --------
@@ -159,16 +165,17 @@ def procesar(ruta):
 
                 progress.set(0)
 
-                formatos = detectar_formatos()
+                # Buscar formatos dentro de la carpeta directamente
+                formatos = detectar_formatos(ruta)
 
                 if formatos:
 
-                    lista = ", ".join(formatos)
+                    lista = "\n".join(f"  • {f}" for f in formatos)
 
-                    estado.configure(text="⚠ Archivo no compatible")
+                    estado.configure(text="⚠ Formato no compatible")
 
                     resultado.configure(
-                        text=f"Se detectaron archivos:\n{lista}\n\nEste programa solo reconstruye CorelDRAW"
+                        text=f"Se detectaron estos archivos:\n{lista}\n\nEste programa solo reconstruye CorelDRAW"
                     )
 
                 else:
@@ -179,7 +186,7 @@ def procesar(ruta):
                         text="No se encontró ningún archivo CorelDRAW\npara reconstruir"
                     )
 
-        # ----- SI ES ARCHIVO -----
+        # ----- SI ES ARCHIVO COMPRIMIDO -----
 
         else:
 
@@ -207,11 +214,26 @@ def procesar(ruta):
 
                 progress.set(0)
 
-                estado.configure(text="Archivo no compatible")
+                # Detectar qué formatos hay dentro del comprimido extraído
+                formatos = detectar_formatos()
 
-                resultado.configure(
-                    text="No se encontró ningún archivo Corel\npara reconstruir"
-                )
+                if formatos:
+
+                    lista = "\n".join(f"  • {f}" for f in formatos)
+
+                    estado.configure(text="⚠ Formato no compatible")
+
+                    resultado.configure(
+                        text=f"Se detectaron estos archivos:\n{lista}\n\nEste programa solo reconstruye CorelDRAW"
+                    )
+
+                else:
+
+                    estado.configure(text="Archivo no compatible")
+
+                    resultado.configure(
+                        text="No se encontró ningún archivo reconocido\npara reconstruir"
+                    )
 
     except Exception as e:
 
@@ -220,14 +242,16 @@ def procesar(ruta):
         estado.configure(text="Error al procesar archivo")
 
         resultado.configure(
-            text="El archivo no es compatible\n o está dañado"
+            text=f"El archivo no es compatible o está dañado.\n{str(e)}"
         )
 
 
 def iniciar_proceso(ruta):
+
     estado.configure(text="Procesando...")
     resultado.configure(text="")
     progress.set(0)
+
     hilo = threading.Thread(target=procesar, args=(ruta,), daemon=True)
     hilo.start()
 
@@ -279,7 +303,7 @@ titulo = ctk.CTkLabel(
     text_color="white"
 )
 
-titulo.pack(pady=(25,5))
+titulo.pack(pady=(25, 5))
 
 
 subtitulo = ctk.CTkLabel(
@@ -289,7 +313,7 @@ subtitulo = ctk.CTkLabel(
     text_color="#9ca3af"
 )
 
-subtitulo.pack(pady=(0,20))
+subtitulo.pack(pady=(0, 20))
 
 
 # -------- PANEL CENTRAL --------
