@@ -1,2 +1,3 @@
-# No external dependencies
-# Uses Python standard library only
+rarfile
+py7zr
+tkinterdnd2

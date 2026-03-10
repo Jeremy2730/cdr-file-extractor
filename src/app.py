@@ -1,10 +1,36 @@
 import os
 import zipfile
+import shutil
+import rarfile
+import py7zr
+
+from tkinterdnd2 import DND_FILES, TkinterDnD
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import messagebox
 
 
-def reconstruir_cdr(carpeta, salida):
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMP_DIR = os.path.join(BASE_DIR, "temp")
+
+
+def limpiar_temp():
+    if os.path.exists(TEMP_DIR):
+        shutil.rmtree(TEMP_DIR)
+    os.makedirs(TEMP_DIR)
+
+
+def es_paquete_corel(carpeta):
+
+    elementos = os.listdir(carpeta)
+
+    return "content" in elementos and "mimetype" in elementos
+
+
+def reconstruir_cdr(carpeta):
+
+    nombre = os.path.basename(carpeta)
+
+    salida = os.path.join(BASE_DIR, nombre + "_FIX.cdr")
 
     with zipfile.ZipFile(salida, 'w', zipfile.ZIP_DEFLATED) as zipf:
 
@@ -18,38 +44,94 @@ def reconstruir_cdr(carpeta, salida):
 
                 zipf.write(ruta, relativa)
 
-
-def seleccionar_carpeta():
-
-    carpeta = filedialog.askdirectory()
-
-    if not carpeta:
-        return
-
-    nombre = os.path.basename(carpeta)
-
-    salida = os.path.join(os.path.dirname(carpeta), nombre + "_FIX.cdr")
-
-    reconstruir_cdr(carpeta, salida)
-
-    messagebox.showinfo("Listo", f"CDR reconstruido:\n{salida}")
+    return salida
 
 
-ventana = tk.Tk()
-ventana.title("CDR Reconstructor")
-ventana.geometry("350x200")
+def extraer_archivo(archivo):
 
-titulo = tk.Label(ventana, text="CDR Reconstructor", font=("Arial", 16))
-titulo.pack(pady=20)
+    limpiar_temp()
 
-boton = tk.Button(
-    ventana,
-    text="Seleccionar carpeta Corel",
-    command=seleccionar_carpeta,
-    height=2,
-    width=25
+    if archivo.endswith(".zip"):
+
+        with zipfile.ZipFile(archivo, 'r') as z:
+            z.extractall(TEMP_DIR)
+
+    elif archivo.endswith(".rar"):
+
+        with rarfile.RarFile(archivo) as r:
+            r.extractall(TEMP_DIR)
+
+    elif archivo.endswith(".7z"):
+
+        with py7zr.SevenZipFile(archivo, 'r') as z:
+            z.extractall(TEMP_DIR)
+
+
+def buscar_paquete():
+
+    for raiz, dirs, files in os.walk(TEMP_DIR):
+
+        if "content" in dirs and "mimetype" in files:
+
+            return raiz
+
+    return None
+
+
+def procesar_archivo(ruta):
+
+    if os.path.isdir(ruta):
+
+        if es_paquete_corel(ruta):
+
+            salida = reconstruir_cdr(ruta)
+
+            messagebox.showinfo("Listo", f"CDR creado:\n{salida}")
+
+        else:
+
+            messagebox.showerror("Error", "No es un paquete Corel válido")
+
+    else:
+
+        extraer_archivo(ruta)
+
+        carpeta = buscar_paquete()
+
+        if carpeta:
+
+            salida = reconstruir_cdr(carpeta)
+
+            messagebox.showinfo("Listo", f"CDR creado:\n{salida}")
+
+        else:
+
+            messagebox.showerror("Error", "No se encontró paquete Corel")
+
+
+def drop(event):
+
+    archivo = event.data.strip("{}")
+
+    procesar_archivo(archivo)
+
+
+app = TkinterDnD.Tk()
+app.title("CDR Reconstructor")
+app.geometry("400x250")
+
+label = tk.Label(
+    app,
+    text="Arrastra aquí tu archivo\nZIP / RAR / 7Z / Carpeta",
+    font=("Arial", 14),
+    width=30,
+    height=8,
+    relief="ridge"
 )
 
-boton.pack(pady=20)
+label.pack(pady=40)
 
-ventana.mainloop()
+label.drop_target_register(DND_FILES)
+label.dnd_bind("<<Drop>>", drop)
+
+app.mainloop()
