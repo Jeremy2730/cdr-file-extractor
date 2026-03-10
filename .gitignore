@@ -32,4 +32,4 @@ __pycache__/
 *.url
 *.rar
 *.zip
-*.7z
+*.7z*.spec
