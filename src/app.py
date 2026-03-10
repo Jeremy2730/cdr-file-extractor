@@ -69,22 +69,25 @@ def extraer_archivo(archivo):
 
     limpiar_temp()
 
-    archivo = archivo.lower()
+    ext = os.path.splitext(archivo)[1].lower()
 
-    if archivo.endswith(".zip"):
+    if ext == ".zip":
 
         with zipfile.ZipFile(archivo, "r") as z:
             z.extractall(TEMP_DIR)
 
-    elif archivo.endswith(".rar"):
+    elif ext == ".rar":
 
         with rarfile.RarFile(archivo) as r:
             r.extractall(TEMP_DIR)
 
-    elif archivo.endswith(".7z"):
+    elif ext == ".7z":
 
         with py7zr.SevenZipFile(archivo, "r") as z:
             z.extractall(TEMP_DIR)
+
+    else:
+        raise ValueError("Formato no soportado")
 
 
 def buscar_paquete():
@@ -98,61 +101,127 @@ def buscar_paquete():
     return None
 
 
+def detectar_formatos():
+
+    formatos_detectados = []
+
+    for raiz, dirs, files in os.walk(TEMP_DIR):
+
+        for archivo in files:
+
+            ext = os.path.splitext(archivo)[1].lower()
+
+            if ext == ".ai":
+                formatos_detectados.append("Illustrator (.ai)")
+
+            elif ext == ".psd":
+                formatos_detectados.append("Photoshop (.psd)")
+
+            elif ext == ".svg":
+                formatos_detectados.append("SVG")
+
+            elif ext == ".eps":
+                formatos_detectados.append("EPS")
+
+    return list(set(formatos_detectados))
+
+
+
 # -------- LOGICA --------
 
 def procesar(ruta):
 
-    progress.set(0.1)
+    try:
 
-    estado.configure(text="Procesando archivo...")
+        progress.set(0.1)
 
-    if os.path.isdir(ruta):
+        estado.configure(text="Analizando archivo...")
 
-        progress.set(0.4)
+        # ----- SI ES CARPETA -----
 
-        if es_paquete_corel(ruta):
+        if os.path.isdir(ruta):
 
-            salida = reconstruir_cdr(ruta)
+            progress.set(0.4)
 
-            progress.set(1)
+            if es_paquete_corel(ruta):
 
-            estado.configure(text="✔ CDR reconstruido")
+                salida = reconstruir_cdr(ruta)
 
-            resultado.configure(text=f"Guardado en:\n{salida}")
+                progress.set(1)
+
+                estado.configure(text="✔ CDR reconstruido")
+
+                resultado.configure(
+                    text=f"Guardado en:\n{salida}"
+                )
+
+            else:
+
+                progress.set(0)
+
+                formatos = detectar_formatos()
+
+                if formatos:
+
+                    lista = ", ".join(formatos)
+
+                    estado.configure(text="⚠ Archivo no compatible")
+
+                    resultado.configure(
+                        text=f"Se detectaron archivos:\n{lista}\n\nEste programa solo reconstruye CorelDRAW"
+                    )
+
+                else:
+
+                    estado.configure(text="Archivo no compatible")
+
+                    resultado.configure(
+                        text="No se encontró ningún archivo CorelDRAW\npara reconstruir"
+                    )
+
+        # ----- SI ES ARCHIVO -----
 
         else:
 
-            estado.configure(text="No es paquete Corel válido")
+            progress.set(0.3)
 
-    else:
+            extraer_archivo(ruta)
 
-        progress.set(0.3)
+            progress.set(0.6)
 
-        extraer_archivo(ruta)
+            carpeta = buscar_paquete()
 
-        progress.set(0.6)
+            if carpeta:
 
-        carpeta = buscar_paquete()
+                salida = reconstruir_cdr(carpeta)
 
-        if carpeta:
+                progress.set(1)
 
-            salida = reconstruir_cdr(carpeta)
+                estado.configure(text="✔ CDR reconstruido")
 
-            progress.set(1)
+                resultado.configure(
+                    text=f"Guardado en:\n{salida}"
+                )
 
-            estado.configure(text="✔ CDR reconstruido")
+            else:
 
-            resultado.configure(text=f"Guardado en:\n{salida}")
+                progress.set(0)
 
-        else:
+                estado.configure(text="Archivo no compatible")
 
-            estado.configure(text="No se encontró paquete Corel")
+                resultado.configure(
+                    text="No se encontró ningún archivo Corel\npara reconstruir"
+                )
 
+    except Exception as e:
 
-def iniciar_proceso(ruta):
+        progress.set(0)
 
-    threading.Thread(target=procesar, args=(ruta,), daemon=True).start()
+        estado.configure(text="Error al procesar archivo")
 
+        resultado.configure(
+            text="El archivo no es compatible\n o está dañado"
+        )
 
 # -------- EVENTOS --------
 
