@@ -289,7 +289,7 @@ app = TkinterDnD.Tk()
 
 app.title("CDR Reconstructor")
 
-app.geometry("520x460")
+app.geometry("520x600")
 
 app.configure(bg="#0f172a")
 
