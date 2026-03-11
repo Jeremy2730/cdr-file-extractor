@@ -3,3 +3,5 @@ git commit -m "Rename project to CDR Reconstructor"
 git push
 
 python src/app.py       ----arrancar app
+
+pyinstaller --onefile --windowed --name "CDR-Reconstructor" --collect-all tkinterdnd2 --icon "assets/cdr_reconstructor.ico" --add-data "assets;assets" src/app.py
